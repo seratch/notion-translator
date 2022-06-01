@@ -1,0 +1,10 @@
+# node / npm stuff
+/node_modules
+/package-lock.json
+# build products
+/dist
+*.tgz
+# macOS
+.DS_Store
+# etc.
+.env*
