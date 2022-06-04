@@ -313,6 +313,30 @@ async function buildTranslatedBlocks(id, nestedDepth) {
   return translatedBlocks;
 }
 
+async function createNewPageForTranslation(originalPage) {
+  const newPage = JSON.parse(JSON.stringify(originalPage)); // Create a deep copy
+  // Create the translated page as a child of the original page
+  newPage.parent = { page_id: originalPage.id };
+  const originalTitle = originalPage.properties.title.title[0];
+  const newTitle = newPage.properties.title.title[0];
+  newTitle.text.content = originalTitle.text.content + ` (${to})`;
+  newTitle.plain_text = originalTitle.plain_text + ` (${to})`;
+  removeUnecessaryProperties(newPage);
+
+  if (debug) {
+    console.log(
+      `New page creation request params: ${toPrettifiedJSON(newPage)}`
+    );
+  }
+  const newPageCreation = await notion.pages.create(newPage);
+  if (debug) {
+    console.log(
+      `New page creation response: ${toPrettifiedJSON(newPageCreation)}`
+    );
+  }
+  return newPageCreation;
+}
+
 (async function () {
   let originalPage;
   const contentId = url.split("/").last().split("-").last();
@@ -339,30 +363,9 @@ async function buildTranslatedBlocks(id, nestedDepth) {
     `\nWait a minute! Now translating the following Notion page:\n${url}\n\n(this may take a bit long) ...`
   );
   const translatedBlocks = await buildTranslatedBlocks(originalPage.id, 0);
-
-  const newPage = JSON.parse(JSON.stringify(originalPage)); // Create a deep copy
-  // Create the translated page as a child of the original page
-  newPage.parent = { page_id: originalPage.id };
-  const originalTitle = originalPage.properties.title.title[0];
-  const newTitle = newPage.properties.title.title[0];
-  newTitle.text.content = originalTitle.text.content + ` (${to})`;
-  newTitle.plain_text = originalTitle.plain_text + ` (${to})`;
-  removeUnecessaryProperties(newPage);
-
-  if (debug) {
-    console.log(
-      `New page creation request params: ${toPrettifiedJSON(newPage)}`
-    );
-  }
-  const newPageCreation = await notion.pages.create(newPage);
-  if (debug) {
-    console.log(
-      `New page creation response: ${toPrettifiedJSON(newPageCreation)}`
-    );
-  }
-
+  const newPage = await createNewPageForTranslation(originalPage);
   const blocksAppendParams = {
-    block_id: newPageCreation.id,
+    block_id: newPage.id,
     children: translatedBlocks,
   };
   if (debug) {
@@ -379,6 +382,6 @@ async function buildTranslatedBlocks(id, nestedDepth) {
   console.log(
     "... Done!\n\nDisclaimer:\nSome parts might not be perfect.\nIf the generated page is missing something, please adjust the details on your own.\n"
   );
-  console.log(`Here is the translated Notion page:\n${newPageCreation.url}\n`);
-  open(newPageCreation.url);
+  console.log(`Here is the translated Notion page:\n${newPage.url}\n`);
+  open(newPage.url);
 })();
