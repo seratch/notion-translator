@@ -241,6 +241,26 @@ async function buildTranslatedBlocks(id, nestedDepth) {
           };
         }
       }
+      if (b.type === "image") {
+        if (b.image.type !== "external") {
+          // The image blocks with internal URLs may not work in a copied page
+          // See https://github.com/seratch/notion-translator/issues/1 for more details
+          const notice = [
+            {
+              plain_text: "(The image was removed from this page)",
+              text: { content: "" },
+            },
+          ];
+          await translateText(notice, "en", to);
+          b = {
+            type: "paragraph",
+            paragraph: {
+              color: "default",
+              rich_text: notice,
+            },
+          };
+        }
+      }
       if (b.type === "child_page") {
         // Convert a child_page in the original page to link_to_page
         try {
@@ -360,7 +380,7 @@ async function createNewPageForTranslation(originalPage) {
   }
 
   process.stdout.write(
-    `\nWait a minute! Now translating the following Notion page:\n${url}\n\n(this may take a bit long) ...`
+    `\nWait a minute! Now translating the following Notion page:\n${url}\n\n(this may take some time) ...`
   );
   const translatedBlocks = await buildTranslatedBlocks(originalPage.id, 0);
   const newPage = await createNewPageForTranslation(originalPage);
