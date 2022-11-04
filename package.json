@@ -2,9 +2,9 @@
   "name": "notion-translator",
   "version": "0.0.1",
   "description": "CLI tool to translate Notion pages into a different language by levergign DeepL's API",
-  "main": "index.js",
+  "main": "backend/index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node backend/index.js"
   },
   "homepage": "https://github.com/seratch/notion-translator",
   "repository": {
@@ -21,15 +21,16 @@
     "CLI"
   ],
   "bin": {
-    "notion-translator": "index.js"
+    "notion-translator": "backend/index.js"
   },
   "author": "Kazuhiro Sera",
   "license": "MIT",
   "dependencies": {
-    "@notionhq/client": "^1.0.4",
+    "@notionhq/client": "^2.2.2",
     "commander": "^9.3.0",
     "deepl-node": "^1.3.1",
-    "dotenv": "^16.0.1",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
     "open": "^8.4.0"
   }
 }
