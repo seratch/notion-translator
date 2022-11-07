@@ -3,10 +3,15 @@ const express = require("express");
 const {translateText} = require("./translator");
 const {removeUnecessaryProperties} = require("./utils");
 const { Client, LogLevel } =  require("@notionhq/client");
+const cors = require('cors');
 
 const debug = true;
 let from = null;
 let to = null;
+const corsOptions = {
+    origin: 'https://notion.so',
+    optionsSuccessStatus: 200
+};
 
 const app = express();
 const notion = new Client({
@@ -14,18 +19,16 @@ const notion = new Client({
     logLevel: LogLevel.DEBUG,
 });
 
+/**
+ * @notice Translate the specified page and return the translated page URL
+ * @return Successful: newPageUrl, Failed: Error Object
+ * */
 const main = async (pageId) => {
     if (!process.env.NOTION_API_TOKEN) {
-        console.error(
-            'This tool requires a valid Notion API token. Head to https://www.notion.so/my-integrations, create a new app with "Read Content" and "Insert Content" permissions, and share your Notion page with the app. Once you get a token, set NOTION_API_TOKEN env variable to the token value.'
-        );
-        process.exit(1);
+        throw new Error("Invalid Notion API token");
     }
     if (!process.env.DEEPL_API_TOKEN) {
-        console.error(
-            "This tool requires a DeepL API token. Head to https://www.deepl.com/pro-api, sign up, and grab your API token. Once you get a token, set DEEPL_API_TOKEN env variable to the token value."
-        );
-        process.exit(1);
+        throw new Error("Invalid DeepL API token");
     }
 
     let originalPage;
@@ -34,43 +37,30 @@ const main = async (pageId) => {
     } catch (e) {
         try {
             await notion.databases.retrieve({ database_id: pageId });
-            console.error(
-                "\nERROR: This URL is a database. This tool currently supports only pages.\n"
-            );
+            throw new Error("This URL is a database. This tool currently supports only pages.");
         } catch (_) {
-            console.error(
-                `\nERROR: Failed to read the page content!\n\nError details: ${e}\n\nPlease make sure the following:\n * The page is shared with your app\n * The API token is the one for this workspace\n`
+            throw new Error(
+                `ERROR: Failed to read the page content!\n\nError details: ${e}\n\nPlease make sure the following:\n * The page is shared with your app\n * The API token is the one for this workspace`
             );
         }
-        process.exit(1);
-    }
-    if (debug) {
-        console.log(`The page metadata: ${JSON.stringify(originalPage)}`);
     }
 
-    process.stdout.write(
-        `\nWait a minute! Now translating the following Notion page:\n${pageId}\n\n(this may take some time) ...`
-    );
     const translatedBlocks = await buildTranslatedBlocks(originalPage.id, 0);
     const newPage = await createNewPageForTranslation(originalPage);
     const blocksAppendParams = {
         block_id: newPage.id,
         children: translatedBlocks,
     };
-    const blocksAddition = await notion.blocks.children.append(
+    await notion.blocks.children.append(
         blocksAppendParams
     );
-    console.log(
-        "... Done!\n\nDisclaimer:\nSome parts might not be perfect.\nIf the generated page is missing something, please adjust the details on your own.\n"
-    );
-    console.log(`Here is the translated Notion page:\n${newPage.url}\n`);
     from = to = null;
-    return newPage.url;
+    return {newPageUrl: newPage.url};
 };
 
 async function buildTranslatedBlocks(id, nestedDepth) {
     const translatedBlocks = [];
-    let cursor;
+    let cursor = undefined;
     let hasMore = true;
     while (hasMore) {
         const blocks = await notion.blocks.children.list({
@@ -78,11 +68,6 @@ async function buildTranslatedBlocks(id, nestedDepth) {
             start_cursor: cursor,
             page_size: 100, // max 100
         });
-        if (debug) {
-            console.log(
-                `Fetched original blocks: ${JSON.stringify(blocks.results, null, 2)}`
-            );
-        }
         // Print dot for the user that is waiting for the completion
         process.stdout.write(".");
 
@@ -233,11 +218,15 @@ async function createNewPageForTranslation(originalPage) {
     return newPageCreation;
 }
 
-// getパラメータに対する処理を記述
-app.get("/", async (req, res) => {
-    const newPageUrl = await main(req.query.pageId);
-
-    res.status(200).send(newPageUrl);
+app.get("/", cors(), async (req, res) => {
+    await main(req.query.pageId)
+        .then(result => {
+            res.set({ 'Access-Control-Allow-Origin': 'https://notion.so' })
+            res.status(200).send(result);
+        })
+        .catch(error => {
+        res.status(503).send(error);
+    });
 });
 
-app.listen(Number(process.env.PORT) || 10000);
+app.listen(process.env.PORT ? Number(process.env.PORT) : 10000);
