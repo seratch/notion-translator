@@ -1,7 +1,7 @@
 const { App } = require("@slack/bolt");
-const { translateText } = require("./translator");
-const { removeUnecessaryProperties } = require("./utils");
 const { Client, LogLevel } = require("@notionhq/client");
+const { translateText } = require("./src/translator");
+const { removeUnecessaryProperties } = require("./src/utils");
 const notion = new Client({
     auth: process.env.NOTION_API_TOKEN,
     logLevel: LogLevel.DEBUG,
