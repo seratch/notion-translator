@@ -1,22 +1,19 @@
-require("dotenv").config();
-const express = require("express");
-const {translateText} = require("./translator");
-const {removeUnecessaryProperties} = require("./utils");
-const { Client, LogLevel } =  require("@notionhq/client");
-const cors = require('cors');
+const { App } = require("@slack/bolt");
+const { translateText } = require("./translator");
+const { removeUnecessaryProperties } = require("./utils");
+const { Client, LogLevel } = require("@notionhq/client");
+const notion = new Client({
+    auth: process.env.NOTION_API_TOKEN,
+    logLevel: LogLevel.DEBUG,
+});
 
 const debug = true;
 let from = null;
 let to = null;
-const corsOptions = {
-    origin: 'https://notion.so',
-    optionsSuccessStatus: 200
-};
 
-const app = express();
-const notion = new Client({
-    auth: process.env.NOTION_API_TOKEN,
-    logLevel: LogLevel.DEBUG,
+const app = new App({
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    token: process.env.SLACK_BOT_TOKEN,
 });
 
 /**
@@ -37,7 +34,9 @@ const main = async (pageId) => {
     } catch (e) {
         try {
             await notion.databases.retrieve({ database_id: pageId });
-            throw new Error("This URL is a database. This tool currently supports only pages.");
+            throw new Error(
+                "This URL is a database. This tool currently supports only pages."
+            );
         } catch (_) {
             throw new Error(
                 `ERROR: Failed to read the page content!\n\nError details: ${e}\n\nPlease make sure the following:\n * The page is shared with your app\n * The API token is the one for this workspace`
@@ -51,11 +50,9 @@ const main = async (pageId) => {
         block_id: newPage.id,
         children: translatedBlocks,
     };
-    await notion.blocks.children.append(
-        blocksAppendParams
-    );
+    await notion.blocks.children.append(blocksAppendParams);
     from = to = null;
-    return {newPageUrl: newPage.url};
+    return { newPageUrl: newPage.url };
 };
 
 async function buildTranslatedBlocks(id, nestedDepth) {
@@ -182,7 +179,7 @@ async function buildTranslatedBlocks(id, nestedDepth) {
                     for (const [_k, _v] of Object.entries(v)) {
                         if (_k === "caption" || (_k === "rich_text" && b.type !== "code")) {
                             const resultLangInfo = await translateText(_v, from, to);
-                            if(!from){
+                            if (!from) {
                                 from = resultLangInfo.from;
                                 to = resultLangInfo.to;
                             }
@@ -218,15 +215,26 @@ async function createNewPageForTranslation(originalPage) {
     return newPageCreation;
 }
 
-app.get("/", cors(), async (req, res) => {
-    await main(req.query.pageId)
-        .then(result => {
-            res.set({ 'Access-Control-Allow-Origin': 'https://notion.so' })
-            res.status(200).send(result);
-        })
-        .catch(error => {
-        res.status(503).send(error);
-    });
-});
+//メッセージが投稿された時に呼ばれるメソッド
+app.message(async ({ message, say }) => {
+    //ここにURLかの判定処理
+    if(!/notion\.so\//.test(message.text)){
+        await say("入力されたテキストはextramileのnotionのURLではありません");
+        return;
+    }
+    const pageId = message.text.split('/').pop().split("-").pop().replace(/\>$/, "");
 
-app.listen(process.env.PORT ? Number(process.env.PORT) : 10000);
+    await say(`<@${message.user}> ${pageId} の翻訳を開始しました。完了したら再度通知します`);
+    await main(pageId)
+        .then(async (result) => {
+            await say(`<@${message.user}> 翻訳が完了しました！ 次のURLから確認できます。\n${result.newPageUrl}`);
+        })
+        .catch(async (error) => {
+            await say(`<@${message.user}> 翻訳時にエラーが発生しました\n${JSON.stringify(error)}`);
+        });
+});
+//アプリが起動時に呼ばれるメソッド
+(async () => {
+    await app.start(process.env.PORT || 3000);
+    console.log("⚡️ Bolt app is running!");
+})();

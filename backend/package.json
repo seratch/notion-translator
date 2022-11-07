@@ -1,0 +1,11 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@notionhq/client": "^2.2.2",
+    "@slack/bolt": "^3.12.2",
+    "deepl-node": "^1.7.1"
+  }
+}
