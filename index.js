@@ -219,7 +219,7 @@ async function createNewPageForTranslation(originalPage) {
 app.message(async ({ message, say }) => {
     //ここにURLかの判定処理
     if(!/notion\.so\//.test(message.text)){
-        await say("入力されたテキストはextramileのnotionのURLではありません");
+        await say("入力されたテキストはnotionのURLではありません");
         return;
     }
     const pageId = message.text.split('/').pop().split("-").pop().replace(/\>$/, "");
