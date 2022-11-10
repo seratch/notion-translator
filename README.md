@@ -52,10 +52,10 @@ You can configure your integration by the following steps:
 * Click "New integration" button
 * Give an easy-to-understand name (e.g., Notion Translator) to the integration
 * Make sure that you select **Read content** and **Insert content** in the **Content Capabilities** section
-* Any option in the **User Capabilities** section works, but **No user information** is recommended
+* Make sure that you select **Read user information without email addresses** in the **User Capabilities** section (if you are confident that all the pages that you want to translate do not have any user mentions, **No user information** works too)
 * Click the **Save** button
 
-<img src="https://user-images.githubusercontent.com/19658/171321517-6ae262f1-7ac6-4415-b5f0-4c343ff31fb0.png" width=300>
+<img width="300" src="https://user-images.githubusercontent.com/19658/201064269-de4e56ac-11fa-4e5e-a0a4-3e859eed3c43.png">
 
 Once the integration is created, you can find your **Internal Integration Token** under **Secrets** section. The string value should start with `secret_`. You will use this value as `NOTION_API_TOKEN` when configuring the CLI later.
 
