@@ -217,6 +217,9 @@ async function buildTranslatedBlocks(id, nestedDepth) {
           continue;
         }
       }
+      if (b.type === "unsupported") {
+        continue;
+      }
       if (b.type === "file") {
         if (b.file.type === "external") {
           if (!b.file.url || b.file.url.trim().length === 0) {
@@ -310,11 +313,11 @@ async function buildTranslatedBlocks(id, nestedDepth) {
       }
       removeUnecessaryProperties(b);
       // Translate all the text parts in this nest level
-      for (const [k, v] of Object.entries(b)) {
+      for (const [_, v] of Object.entries(b)) {
         if (v instanceof Object) {
-          for (const [_k, _v] of Object.entries(v)) {
-            if (_k === "caption" || (_k === "rich_text" && b.type !== "code")) {
-              await translateText(_v, from, to);
+          for (const [key, value] of Object.entries(v)) {
+            if (key === "caption" || (key === "rich_text" && b.type !== "code")) {
+              await translateText(value, from, to);
             }
           }
         }
