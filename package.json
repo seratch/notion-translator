@@ -1,6 +1,6 @@
 {
   "name": "notion-translator",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "CLI tool to translate Notion pages into a different language by levergign DeepL's API",
   "main": "index.js",
   "scripts": {
