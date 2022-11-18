@@ -14,7 +14,7 @@ const open = require("open");
 if (!process.env.NOTION_API_TOKEN) {
   open("https://www.notion.so/my-integrations");
   console.error(
-    'This tool requires a valid Notion API token. Head to https://www.notion.so/my-integrations, create a new app with "Read Content" and "Insert Content" permissions, and share your Notion page with the app. Once you get a token, set NOTION_API_TOKEN env variable to the token value.'
+    'This tool requires a valid Notion API token. Head to https://www.notion.so/my-integrations, create a new app with "Read Content" and "Insert Content" in "Content Capabilities" section, plus "Read user information without email addresses" in "User Capabilities" section, and then share your Notion page with the app. Once you get a token, set NOTION_API_TOKEN env variable to the token value.'
   );
   process.exit(1);
 }
@@ -244,6 +244,22 @@ async function buildTranslatedBlocks(id, nestedDepth) {
           };
         }
       }
+      if (b.type === "table") {
+        const notice = [
+          {
+            plain_text: "(The table was removed from this page)",
+            text: { content: "" },
+          },
+        ];
+        await translateText(notice, "en", to);
+        b = {
+          type: "paragraph",
+          paragraph: {
+            color: "default",
+            rich_text: notice,
+          },
+        };
+      }
       if (b.type === "image") {
         if (b.image.type !== "external") {
           // The image blocks with internal URLs may not work in a copied page
@@ -332,6 +348,27 @@ async function buildTranslatedBlocks(id, nestedDepth) {
     } else {
       hasMore = false;
     }
+  }
+  if (translatedBlocks.length > 100) {
+    // When you have 100+ children under a block,
+    // {"object":"error","status":400,"code":"validation_error","message":"body failed validation: body.children.length should be ≤ `100`, instead was `133`."} can be returned.
+    const reducedBlocks = translatedBlocks.slice(0, 99);
+    const notice = [
+      {
+        plain_text: "(Sorry! notion-translator had to omit all the following blocks due to Notion public API's limitation)",
+        text: { content: "" },
+      },
+    ];
+    await translateText(notice, "en", to);
+    b = {
+      type: "paragraph",
+      paragraph: {
+        color: "default",
+        rich_text: notice,
+      },
+    };
+    reducedBlocks.push(b);
+    return reducedBlocks;
   }
   return translatedBlocks;
 }
