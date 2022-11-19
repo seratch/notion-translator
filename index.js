@@ -377,7 +377,7 @@ async function createNewPageForTranslation(originalPage) {
   const newPage = JSON.parse(JSON.stringify(originalPage)); // Create a deep copy
   // Create the translated page as a child of the original page
   newPage.parent = { page_id: originalPage.id };
-  const originalTitle = originalPage.properties.title.title[0];
+  const originalTitle = originalPage.properties.title ? originalPage.properties.title.title[0] : "Translated page";
   const newTitle = newPage.properties.title.title[0];
   newTitle.text.content = originalTitle.text.content + ` (${to})`;
   newTitle.plain_text = originalTitle.plain_text + ` (${to})`;
