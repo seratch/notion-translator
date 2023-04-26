@@ -418,7 +418,6 @@ async function createNewPageForTranslation(originalPage) {
     `\nWait a minute! Now translating the following Notion page:\n${url}\n\n(this may take some time) ...`
   );
   const translatedBlocks = await buildTranslatedBlocks(originalPage.id, 0);
-  console.log(`translatedBlocks = ${translatedBlocks.length}`);
   const newPage = await createNewPageForTranslation(originalPage);
   const blocksAppendParams = {
     block_id: newPage.id,
@@ -442,7 +441,6 @@ async function createNewPageForTranslation(originalPage) {
       block_id: newPage.id,
       children: reducedBlocks,
     };
-    console.log(`from ${beginIndex} to ${endIndex}`);
 
     const blocksAddition = await notion.blocks.children.append(blocksAppendParams);
     if (debug) {
