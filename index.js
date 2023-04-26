@@ -253,11 +253,27 @@ async function buildTranslatedBlocks(id, nestedDepth) {
         ];
         await translateText(notice, "en", to);
         b = {
-          type: "paragraph",
-          paragraph: {
-            color: "default",
-            rich_text: notice,
+          type: "table",
+          table: {
+            table_width:        b.table.table_width,
+            has_column_header:  b.table.has_column_header,
+            has_row_header:     b.table.has_row_header
           },
+          has_children: true,
+          id: b.id,
+        };
+
+      }
+      if (b.type === 'table_row') {
+        // translate each cell
+        for (const row of b.table_row.cells) {
+          await translateText(row, from, to);
+        }
+        b = {
+          has_children: false,
+          archived: false,
+          type: 'table_row',
+          table_row: { cells: b.table_row.cells }
         };
       }
       if (b.type === "image") {
@@ -349,27 +365,6 @@ async function buildTranslatedBlocks(id, nestedDepth) {
       hasMore = false;
     }
   }
-  if (translatedBlocks.length > 100) {
-    // When you have 100+ children under a block,
-    // {"object":"error","status":400,"code":"validation_error","message":"body failed validation: body.children.length should be ≤ `100`, instead was `133`."} can be returned.
-    const reducedBlocks = translatedBlocks.slice(0, 99);
-    const notice = [
-      {
-        plain_text: "(Sorry! notion-translator had to omit all the following blocks due to Notion public API's limitation)",
-        text: { content: "" },
-      },
-    ];
-    await translateText(notice, "en", to);
-    b = {
-      type: "paragraph",
-      paragraph: {
-        color: "default",
-        rich_text: notice,
-      },
-    };
-    reducedBlocks.push(b);
-    return reducedBlocks;
-  }
   return translatedBlocks;
 }
 
@@ -423,6 +418,7 @@ async function createNewPageForTranslation(originalPage) {
     `\nWait a minute! Now translating the following Notion page:\n${url}\n\n(this may take some time) ...`
   );
   const translatedBlocks = await buildTranslatedBlocks(originalPage.id, 0);
+  console.log(`translatedBlocks = ${translatedBlocks.length}`);
   const newPage = await createNewPageForTranslation(originalPage);
   const blocksAppendParams = {
     block_id: newPage.id,
@@ -433,12 +429,27 @@ async function createNewPageForTranslation(originalPage) {
       `Block creation request params: ${toPrettifiedJSON(blocksAppendParams)}`
     );
   }
-  const blocksAddition = await notion.blocks.children.append(
-    blocksAppendParams
-  );
-  if (debug) {
-    console.log(`Block creation response: ${toPrettifiedJSON(blocksAddition)}`);
-  }
+
+  const pageSize = 10;
+  let beginIndex = 0;
+  let endIndex = 0;
+  do {
+    beginIndex = endIndex;
+    endIndex = (beginIndex + pageSize) < translatedBlocks.length ? beginIndex + pageSize : translatedBlocks.length;
+    const reducedBlocks = translatedBlocks.slice(beginIndex, endIndex);
+
+    const blocksAppendParams = {
+      block_id: newPage.id,
+      children: reducedBlocks,
+    };
+    console.log(`from ${beginIndex} to ${endIndex}`);
+
+    const blocksAddition = await notion.blocks.children.append(blocksAppendParams);
+    if (debug) {
+      console.log(`Block creation response: ${toPrettifiedJSON(blocksAddition)}`);
+    }
+  } while(endIndex < translatedBlocks.length);
+
   console.log(
     "... Done!\n\nDisclaimer:\nSome parts might not be perfect.\nIf the generated page is missing something, please adjust the details on your own.\n"
   );
